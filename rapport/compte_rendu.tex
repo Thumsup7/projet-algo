@@ -1,0 +1,644 @@
+\documentclass[12pt,a4paper]{article}
+
+% ── Encodage et langue ────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+
+% ── Mise en page ──────────────────────────────────────────────────────────────
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage{parskip}          % espacement entre paragraphes
+\setlength{\parindent}{0pt}
+
+% ── Mathématiques ─────────────────────────────────────────────────────────────
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% ── Tableaux ──────────────────────────────────────────────────────────────────
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+
+% ── Code source ───────────────────────────────────────────────────────────────
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codebg}{gray}{0.96}
+\definecolor{keyword}{rgb}{0.0, 0.3, 0.7}
+\definecolor{comment}{rgb}{0.3, 0.55, 0.3}
+\definecolor{string}{rgb}{0.6, 0.1, 0.1}
+
+\lstset{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{keyword}\bfseries,
+  commentstyle=\color{comment}\itshape,
+  stringstyle=\color{string},
+  frame=single,
+  framerule=0.4pt,
+  rulecolor=\color{gray!50},
+  breaklines=true,
+  breakatwhitespace=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  literate=
+    {←}{$\leftarrow$}1
+    {→}{$\rightarrow$}1
+    {≤}{$\leq$}1
+    {≥}{$\geq$}1
+    {≠}{$\neq$}1
+    {∞}{$\infty$}1
+    {·}{$\cdot$}1
+    {⟹}{$\Rightarrow$}1
+    {∑}{$\sum$}1,
+}
+
+% ── Hyperliens ────────────────────────────────────────────────────────────────
+\usepackage[colorlinks=true, linkcolor=blue!60!black, urlcolor=blue!60!black]{hyperref}
+
+% ── En-têtes / pieds de page ─────────────────────────────────────────────────
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small Mini-projet algorithmique avancée}
+\rhead{\small Triangulation minimale d'un polygone convexe}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ── Titres de sections ────────────────────────────────────────────────────────
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{document}
+
+% ── Page de titre ─────────────────────────────────────────────────────────────
+\begin{titlepage}
+  \centering
+  \vspace*{3cm}
+  {\LARGE\bfseries Mini-projet d'algorithmique avancée\par}
+  \vspace{1cm}
+  {\Huge\bfseries Triangulation minimale\\[0.3em]d'un polygone convexe\par}
+  \vspace{2cm}
+  \rule{0.6\textwidth}{0.4pt}\\[1em]
+  {\large ENSSAT INFO 2 --- 2025-2026\par}
+  \vfill
+  {\normalsize Implémentation en Rust\par}
+  \vspace{1cm}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Introduction}
+% ─────────────────────────────────────────────────────────────────────────────
+
+Ce projet étudie le problème de la \textbf{triangulation minimale d'un polygone convexe}.
+Étant donné un polygone plan à $n$ sommets $s_0, s_1, \ldots, s_{n-1}$ (classés en ordre
+rétrograde), il s'agit de sélectionner un ensemble de \textbf{cordes} --- segments joignant
+deux sommets non adjacents --- tels que :
+
+\begin{enumerate}
+  \item les cordes ne se croisent pas,
+  \item le polygone est entièrement subdivisé en triangles,
+  \item la somme des longueurs des cordes choisies est \textbf{minimale}.
+\end{enumerate}
+
+Nous étudions trois approches algorithmiques : les essais successifs (backtracking),
+la programmation dynamique et l'algorithme glouton. Le code est implémenté en
+\textbf{Rust} pour ses garanties de performance et de correction mémoire.
+
+\textbf{Exemple de référence :} l'heptagone de l'énoncé (sommets donnés en annexe).
+La triangulation non minimale proposée dans l'énoncé a un poids de $77{,}56$~; la
+triangulation optimale a un poids de $\mathbf{75{,}43}$
+(cordes $(s_0, s_2)$, $(s_0, s_5)$, $(s_2, s_5)$, $(s_3, s_5)$).
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{A. Questions préliminaires}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection{A.1 --- Nombre de cordes distinctes dans un polygone à $n$ sommets}
+
+Le nombre total de paires de sommets est $\binom{n}{2} = \frac{n(n-1)}{2}$.
+Parmi ces paires, $n$ sont des \textbf{arêtes} du polygone (sommets adjacents).
+Le nombre de cordes (paires non adjacentes) est donc :
+
+\[
+  \text{nombre de cordes} = \binom{n}{2} - n = \frac{n(n-1)}{2} - n = \frac{n(n-3)}{2}
+\]
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+$n$ & Cordes possibles & Cordes par triangulation \\
+\midrule
+  4 &  2 & 1 \\
+  5 &  5 & 2 \\
+  6 &  9 & 3 \\
+  7 & 14 & 4 \\
+ 10 & 35 & 7 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{A.2 --- Toutes les triangulations comportent le même nombre de cordes}
+
+\textbf{Théorème :} Toute triangulation d'un polygone convexe à $n$ sommets comporte
+exactement $n - 3$ cordes.
+
+\textbf{Preuve par récurrence sur $n$.}
+
+\begin{itemize}
+  \item \textbf{Base ($n = 3$) :} Le triangle est déjà triangulé sans aucune corde.
+        $0 = 3 - 3$. \checkmark
+
+  \item \textbf{Hérédité :} Supposons le résultat établi pour tout polygone convexe
+        à $k < n$ sommets.  Soit $P$ un polygone convexe à $n$ sommets et $T$ une
+        triangulation de $P$.
+
+        Considérons le triangle de $T$ qui contient l'arête $(s_0, s_1)$. Il a la forme
+        $(s_0, s_1, s_k)$ pour un certain $k \geq 2$.  Le sommet $s_1$ est alors une
+        \emph{oreille} de $P$ : supprimer $s_1$ produit un polygone convexe $P'$ à $n-1$
+        sommets (la convexité est préservée car on retire un sommet de la frontière
+        convexe). La restriction de $T$ à $P'$ est une triangulation de $P'$ comportant,
+        par hypothèse de récurrence, $(n-1)-3 = n-4$ cordes. En ajoutant la corde
+        $(s_0, s_k)$ si $k \geq 3$ (ou aucune corde supplémentaire si $k = 2$), on
+        retrouve exactement $\mathbf{n-3}$ cordes pour la triangulation $T$ de $P$.
+        \checkmark
+\end{itemize}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{B. Essais successifs}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection{B.1 --- Fonction \texttt{validecorde(i, j)}}
+
+La fonction \texttt{valid\_chord(i, j, drawn, vertices)} retourne \texttt{vrai} si
+et seulement si :
+
+\begin{enumerate}
+  \item La corde $(s_i, s_j)$ n'a pas déjà été tracée (vérification dans \texttt{drawn}).
+  \item La corde $(s_i, s_j)$ ne coupe aucune corde déjà tracée (test d'intersection
+        par produits vectoriels).
+  \item \textit{(Pour généralité)} La corde ne coupe aucune arête du polygone ---
+        condition automatiquement vérifiée pour un polygone strictement convexe.
+\end{enumerate}
+
+L'intersection de deux segments est détectée par la méthode des \textbf{produits
+vectoriels signés} : deux segments $(A,B)$ et $(C,D)$ se coupent proprement si et
+seulement si $C$ et $D$ sont de part et d'autre de la droite $AB$, et réciproquement
+$A$ et $B$ sont de part et d'autre de la droite $CD$.
+
+\begin{lstlisting}[caption={Pseudo-code de validecorde}]
+Fonction validecorde(i, j, tracees, sommets) :
+  Pour chaque corde (a, b) dans tracees :
+    Si (a = i et b = j) ou (a = j et b = i) :
+      retourner FAUX  // deja tracee
+
+  Pour chaque corde (a, b) dans tracees :
+    Si a != i et a != j et b != i et b != j :
+      Si segments_croisent(sommets[i], sommets[j], sommets[a], sommets[b]) :
+        retourner FAUX
+
+  retourner VRAI
+\end{lstlisting}
+
+\subsection{B.2 --- Analyse de la stratégie naïve par sommets}
+
+La stratégie naïve traite les sommets en ordre croissant : à l'étape $i$, elle trace une
+corde valide depuis $s_i$ ou ne trace rien.
+
+\textbf{Doublons :} Oui.  La corde $(s_i, s_j)$ peut être tracée à l'étape $i$ (depuis
+$s_i$) ou à l'étape $j$ (depuis $s_j$). Deux branches différentes de l'arbre de recherche
+peuvent donc produire la même triangulation via des ordres de tracé différents.
+
+\textit{Exemple :} Sur le pentagone, $\{(s_0,s_2),\,(s_2,s_4)\}$ peut être trouvée par
+(étape 0 : $(s_0,s_2)$, étape 2 : $(s_2,s_4)$) ou par (étape 0 : rien, étape 2 :
+$(s_0,s_2)$ vu depuis $s_2$, étape 4 : $(s_2,s_4)$).
+
+\textbf{Incomplétude :} Sous l'interprétation canonique où la corde $(s_i, s_j)$ ($i < j$)
+n'est disponible qu'à l'étape $i$, la stratégie ne peut tracer qu'une seule corde par
+étape.  Or certaines triangulations requièrent plusieurs cordes issues du même sommet $s_i$
+comme plus petite extrémité.
+
+\textit{Contre-exemple :} Pour l'hexagone ($n=6$), la triangulation en éventail depuis
+$s_0$ : $T = \{(s_0,s_2),\,(s_0,s_3),\,(s_0,s_4)\}$ comporte 3 cordes dont $s_0$ est la
+plus petite extrémité.  Elles ne peuvent être tracées qu'à l'étape 0, mais la stratégie
+n'en trace qu'une seule.  Cette triangulation est donc inaccessible.
+
+\subsection{B.3 --- Stratégie correcte : itération sur les cordes}
+
+\subsubsection*{B.3a --- Algorithme}
+
+Pour garantir que chaque triangulation est construite \textbf{une fois et une seule}, on
+énumère les cordes dans un ordre fixé (triées par longueur croissante) et on décide pour
+chacune de l'inclure ou non. Cela forme un arbre binaire de décision sans ambiguïté.
+
+\begin{lstlisting}[caption={Pseudo-code de l'algorithme backtracking}]
+Algorithme Backtrack(cordes, start, selection, meilleures, meilleurCout) :
+  Si |selection| = n - 3 :
+    // Propriete : n-3 cordes non-croisees => triangulation complete (Euler)
+    cout <- somme des longueurs dans selection
+    Si cout < meilleurCout :
+      meilleurCout <- cout
+      meilleures   <- selection
+    Retourner
+
+  restantes  <- |cordes| - start
+  necessaires <- (n - 3) - |selection|
+
+  // Elagage 1 : pas assez de cordes restantes
+  Si restantes < necessaires : Retourner
+
+  // Elagage 2 : cout deja trop eleve
+  Si somme(selection) >= meilleurCout : Retourner
+
+  Pour idx = start a |cordes| - 1 :
+    // Elagage 3 (borne inferieure) : les k prochaines cordes sont au minimum
+    //   cordes[idx].longueur (triees croissant)
+    borne <- somme(selection) + somme des k prochaines longueurs
+    Si borne >= meilleurCout :
+      break  // toutes les suivantes sont pires
+
+    Si validecorde(cordes[idx], selection, sommets) :
+      selection.ajouter(cordes[idx])
+      Backtrack(cordes, idx+1, selection, meilleures, meilleurCout)
+      selection.retirer(cordes[idx])
+\end{lstlisting}
+
+\subsubsection*{B.3b --- Complexité}
+
+Sans élagage, l'algorithme explore tous les sous-ensembles de taille $n-3$ parmi $m$
+cordes, soit $\binom{m}{n-3}$ appels. L'arbre binaire donne $O(2^m)$ appels en pire cas,
+avec $m = \frac{n(n-3)}{2}$.  La complexité est donc :
+\[
+  O\!\left(2^{n(n-3)/2}\right)
+\]
+
+\subsubsection*{B.3c --- Conditions d'élagage et gains}
+
+Quatre conditions sont implémentées :
+
+\begin{center}
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+Condition & Description & Impact \\
+\midrule
+1 --- Complétude     & $n-3$ cordes $\Rightarrow$ triangulation finie      & Coupe les branches trop longues \\
+2 --- Insuffisance   & Cordes restantes $<$ cordes nécessaires              & Coupe les branches courtes \\
+3 --- Branch-and-bound & Coût partiel $\geq$ meilleur connu               & Coupe les branches sous-optimales \\
+4 --- Borne inférieure & Coût partiel $+$ somme des $k$ prochaines $\geq$ meilleur & \textbf{Coupe la boucle entière} \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+La condition~4 est de loin la plus efficace : elle exploite le tri des cordes par longueur
+croissante pour arrêter la boucle dès que toute continuation est sous-optimale.
+
+\textbf{Tableau comparatif (polygone régulier) :}
+
+\begin{center}
+\begin{tabular}{crrr}
+\toprule
+$n$ & Appels (cond.~1-3) & Appels (cond.~1-4) & Gain \\
+\midrule
+  7 &              191   &               17   & $\times 11$  \\
+ 10 &           20\,791  &              207   & $\times 100$ \\
+ 13 &        2\,596\,797 &            4\,516  & $\times 575$ \\
+ 20 &         $>10^9$    &       10\,338\,656 & ---          \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection*{B.3d --- Limite pratique}
+
+Avec les quatre conditions, le temps croît d'un facteur $\approx 3{,}2$ par incrément
+de $n$.
+
+\begin{center}
+\begin{tabular}{crr}
+\toprule
+$n$ & Appels & Temps (ms) \\
+\midrule
+ 10 &              207 &       0 \\
+ 13 &            4\,516 &       1 \\
+ 15 &           38\,014 &       9 \\
+ 17 &          274\,976 &      77 \\
+ 18 &          927\,798 &     296 \\
+ 19 &        3\,173\,616 &   1\,012 \\
+ 20 &       10\,338\,656 &   3\,241 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Par extrapolation, $n = 23$ est atteignable en $\approx 96$~s $<$ 2~min, et $n = 24$ en
+$\approx 310$~s $>$ 2~min.
+\textbf{La limite pratique est donc $n \approx 23$ en moins de 2 minutes.}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{C. Programmation dynamique}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection{C.1 --- Formule de récurrence}
+
+On définit $T(i, t)$ comme le coût minimal en cordes de la triangulation du sous-polygone
+$s_i, s_{i+1}, \ldots, s_{i+t-1}$ (indices modulo $n$). Le segment de base
+$(s_i, s_{i+t-1})$ est exclu du coût car il est soit une arête du polygone, soit une corde
+déjà comptabilisée par le problème père.
+
+\textbf{Cas de base :}
+\[
+  T(i, 1) = T(i, 2) = 0
+\]
+
+\textbf{Cas récursif ($t \geq 3$) :} On choisit un sommet $s_{i+k}$ ($k \in \{1, \ldots,
+t-2\}$) pour former le triangle $(s_i, s_{i+k}, s_{i+t-1})$. Les nouvelles cordes
+introduites sont :
+\begin{itemize}
+  \item $(s_i, s_{i+k})$ si $k \geq 2$ (sinon c'est l'arête $s_i \to s_{i+1}$),
+  \item $(s_{i+k}, s_{i+t-1})$ si $k \leq t-3$ (sinon c'est l'arête $s_{i+t-2} \to s_{i+t-1}$).
+\end{itemize}
+
+\[
+  T(i, t) = \min_{k=1}^{t-2} \Bigl[
+    \mathbf{1}_{k \geq 2}\cdot d(s_i, s_{i+k})
+    + \mathbf{1}_{k \leq t-3}\cdot d(s_{i+k}, s_{i+t-1})
+    + T(i,\, k+1)
+    + T(i+k,\, t-k)
+  \Bigr]
+\]
+
+La réponse est $T(0, n)$.
+
+\subsection{C.2 --- Algorithme}
+
+\begin{lstlisting}[caption={Pseudo-code de la programmation dynamique}]
+Algorithme DP_Triangulation(sommets[0..n-1]) :
+  // Precalcul des distances
+  Pour i, j = 0 a n-1 : d[i][j] <- distance(sommets[i], sommets[j])
+
+  // Initialisation
+  Pour i = 0 a n-1 : dp[i][1] <- 0  ;  dp[i][2] <- 0
+
+  // Remplissage par taille de sous-probleme croissante
+  Pour t = 3 a n :
+    Pour i = 0 a n-1 :
+      dp[i][t] <- +inf
+      Pour k = 1 a t-2 :
+        ik  <- (i + k)     mod n
+        it1 <- (i + t - 1) mod n
+        c1  <- d[i][ik]   si k >= 2,   sinon 0
+        c2  <- d[ik][it1] si k <= t-3, sinon 0
+        cout <- c1 + c2 + dp[i][k+1] + dp[ik][t-k]
+        Si cout < dp[i][t] :
+          dp[i][t]    <- cout
+          choix[i][t] <- k
+
+  Retourner dp[0][n]
+\end{lstlisting}
+
+La reconstruction des cordes parcourt \texttt{choix} récursivement depuis $(0, n)$.
+
+\subsection{C.3 --- Complexité}
+
+\textbf{Spatiale :} $O(n^2)$ --- tableaux \texttt{dp}$[n][n+1]$ et \texttt{choix}$[n][n+1]$.
+
+\textbf{Temporelle :}
+\[
+  \sum_{i=0}^{n-1} \sum_{t=3}^{n} (t-2)
+  = n \cdot \sum_{j=1}^{n-2} j
+  = n \cdot \frac{(n-2)(n-1)}{2}
+  = O(n^3)
+\]
+
+Complexité temporelle : $\mathbf{O(n^3)}$ comparaisons.
+
+\subsection{C.4 --- Intérêt du sommet commun}
+
+Les sous-problèmes $T(i, k+1)$ et $T(i+k, t-k)$ partagent le sommet $s_{i+k}$. Cela
+garantit que leurs zones respectives sont disjointes et contiguës, formant ensemble une
+triangulation valide sans vérification d'intersection supplémentaire. De plus, chaque
+triangulation est examinée \textbf{exactement une fois} : il y a une bijection entre les
+arbres de décomposition et les triangulations.
+
+Si la décomposition utilisait des cordes arbitraires, l'état d'un sous-problème ne pourrait
+plus être caractérisé par un simple couple $(i, t)$ mais nécessiterait un sous-ensemble
+quelconque de sommets ($2^n$ états possibles), rendant la mémoïsation exponentiellement
+plus coûteuse.
+
+\textbf{Résultats sur l'heptagone :}
+\[
+  \text{DP : coût} = 75{,}4307,\quad
+  \text{cordes} = \{(0,2),\,(0,5),\,(2,5),\,(3,5)\},\quad
+  \text{temps} \approx 6\,\mu\text{s}
+\]
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{D. Algorithme glouton}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection{D.1 --- Mise en \oe uvre}
+
+L'algorithme maintient un anneau \texttt{ring} de sommets restants (initialement
+$0, 1, \ldots, n-1$). À chaque étape :
+
+\begin{enumerate}
+  \item Pour chaque sommet $s_i$ de l'anneau, calculer la longueur de la corde extérieure
+        $(s_{i-1}, s_{i+1})$.
+  \item Sélectionner l'oreille de longueur minimale.
+  \item Enregistrer la corde $(s_{i-1}, s_{i+1})$, retirer $s_i$ de l'anneau.
+  \item Répéter jusqu'à ce qu'il reste 3 sommets.
+\end{enumerate}
+
+\begin{lstlisting}[caption={Pseudo-code de l'algorithme glouton}]
+Algorithme Glouton(sommets[0..n-1]) :
+  ring <- [0, 1, ..., n-1]
+  cordes <- []  ;  cout_total <- 0
+
+  Tant que |ring| > 3 :
+    meilleure_longueur <- +inf
+    meilleure_oreille  <- -1
+
+    Pour i = 0 a |ring| - 1 :
+      prev <- ring[(i - 1) mod |ring|]
+      next <- ring[(i + 1) mod |ring|]
+      longueur <- d(sommets[prev], sommets[next])
+      Si longueur < meilleure_longueur :
+        meilleure_longueur <- longueur
+        meilleure_oreille  <- i
+
+    prev <- ring[(meilleure_oreille - 1) mod |ring|]
+    next <- ring[(meilleure_oreille + 1) mod |ring|]
+    cordes.ajouter((prev, next))
+    cout_total <- cout_total + meilleure_longueur
+    ring.supprimer(meilleure_oreille)
+
+  Retourner (cout_total, cordes)
+\end{lstlisting}
+
+Complexité : $\mathbf{O(n^2)}$ --- $n-3$ itérations, chacune en $O(n)$.
+
+\subsection{D.2 --- Caractère exact}
+
+La stratégie gloutonne \textbf{n'est pas exacte} : elle ne garantit pas la triangulation
+minimale.
+
+\textbf{Contre-exemple --- l'heptagone de l'énoncé :}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Méthode & Coût & Cordes choisies \\
+\midrule
+Glouton & $75{,}83$ & $(s_3,s_5),\,(s_1,s_3),\,(s_0,s_3),\,(s_0,s_5)$ \\
+Optimal & $75{,}43$ & $(s_0,s_2),\,(s_0,s_5),\,(s_2,s_5),\,(s_3,s_5)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Le glouton commence par $(s_3,s_5) \approx 15{,}65$, puis $(s_1,s_3) \approx 16{,}16$.
+Ces choix localement optimaux forcent ensuite $(s_0,s_3) \approx 21{,}93$ et
+$(s_0,s_5) \approx 22{,}09$, pour un total de $75{,}83$. La solution optimale, en
+choisissant $(s_0,s_2) \approx 17{,}89$ et $(s_2,s_5) \approx 19{,}80$ à la place, obtient
+$75{,}43$.
+
+\textbf{Résultats expérimentaux (polygone régulier) :}
+
+\begin{center}
+\begin{tabular}{crrr}
+\toprule
+$n$ & Coût DP & Coût Glouton & Ratio \\
+\midrule
+  10 &   968,21 &    984,05 & 1,016 \\
+  20 & 1\,586,24 &  1\,626,43 & 1,025 \\
+  50 & 2\,415,15 &  2\,463,41 & 1,020 \\
+ 100 & 3\,043,06 &  3\,094,65 & 1,017 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Le glouton s'écarte d'environ \textbf{2\,\%} de l'optimal sur les polygones réguliers
+testés. Cet écart peut être plus important pour des polygones de géométrie défavorable.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{E. Recommandation argumentée}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection*{Synthèse comparative}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lXXX}
+\toprule
+Critère & Essais successifs & Prog.\ dynamique & Glouton \\
+\midrule
+\textbf{Exactitude}         & Oui                & Oui                     & Non ($\approx$2\,\%) \\
+\textbf{Temps}              & $O(2^{n(n-3)/2})$  & $\mathbf{O(n^3)}$       & $O(n^2)$ \\
+\textbf{Espace}             & $O(n)$ (pile)       & $O(n^2)$               & $O(n)$ \\
+\textbf{Limite pratique}    & $n \leq 23$         & $n \leq$ plusieurs~$10^3$ & illimité \\
+\textbf{Reconstruction}     & Directe            & Via table \texttt{choix} & Directe \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection*{Recommandation}
+
+\textbf{La programmation dynamique est l'algorithme à recommander} pour ce problème.
+
+Ses atouts décisifs sont :
+\begin{itemize}
+  \item \textbf{Exactitude garantie} dans tous les cas, quelle que soit la géométrie.
+  \item \textbf{Complexité polynomiale $O(n^3)$} garantie --- non dépendante de l'élagage
+        ni de la structure des données. Pour $n = 1\,000$, la DP termine en une fraction
+        de seconde.
+  \item \textbf{Mémoïsation efficace} : les $O(n^2)$ sous-problèmes sont chacun résolus
+        une seule fois.
+  \item La reconstruction des cordes optimales est $O(n)$ supplémentaire.
+\end{itemize}
+
+L'algorithme glouton, bien que très rapide ($O(n^2)$), ne donne aucune garantie
+d'optimalité. Pour une application où la précision est requise (robotique, maillage
+numérique, etc.), ce 2\,\% d'écart peut être critique.
+
+Les essais successifs avec élagage restent précieux comme \textbf{outil de validation} de
+la DP sur de petits polygones, et pour explorer des variantes du problème où la
+programmation dynamique ne s'applique pas directement (polygones non convexes, distances
+non euclidiennes, contraintes additionnelles).
+
+\textbf{Rôle de chaque algorithme dans la pratique :}
+\begin{itemize}
+  \item \textbf{DP} $\to$ production (solution exacte, scalable)
+  \item \textbf{Glouton} $\to$ initialisation rapide de la borne supérieure
+  \item \textbf{Essais successifs} $\to$ validation et résolution de variantes contraintes
+\end{itemize}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Conclusion}
+% ─────────────────────────────────────────────────────────────────────────────
+
+Nous avons étudié trois approches pour la triangulation minimale d'un polygone convexe.
+
+\textbf{La programmation dynamique} est la solution recommandée : exacte, polynomiale
+$O(n^3)$, et adaptée à tout polygone de taille pratique. La clé de son efficacité est la
+décomposition en sous-polygones contigus partageant un sommet, qui garantit la validité,
+l'unicité et la mémoïsabilité des sous-problèmes.
+
+\textbf{Les essais successifs} illustrent l'importance de l'élagage : sans la borne
+inférieure par longueur minimale (condition~4), la limite pratique est $n \approx 13$~;
+avec elle, elle monte à $n \approx 23$. Le facteur de réduction pour $n = 13$ est de
+$\times 575$.
+
+\textbf{L'algorithme glouton} est une heuristique rapide ($O(n^2)$) qui s'écarte
+d'environ 2\,\% de l'optimal sur les polygones réguliers. Il n'est pas exact :
+l'heptagone de l'énoncé en est un contre-exemple concret ($75{,}83$ contre $75{,}43$).
+
+Les 24 tests unitaires passent avec succès et valident la cohérence des trois approches :
+DP et backtracking donnent le même résultat optimal sur tous les polygones $n = 4$
+à $n = 10$~; le glouton est toujours $\geq$ DP~; les cordes restituées sont non-croisées
+et au nombre de $n - 3$.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section*{Annexe --- Architecture du code}
+\addcontentsline{toc}{section}{Annexe --- Architecture du code}
+% ─────────────────────────────────────────────────────────────────────────────
+
+Les fichiers sources sont disponibles dans le dépôt. Architecture :
+
+\begin{lstlisting}
+src/
+  polygon.rs      -- Structures de base (Point, distances, intersection)
+  backtracking.rs -- B.1 valid_chord, B.3 backtrack avec elagage
+  dynamic.rs      -- C.1/C.2 DP triangulation + reconstruction des cordes
+  greedy.rs       -- D.1 algorithme glouton par selection d'oreilles
+  main.rs         -- Programme principal : benchmarks et comparaisons
+  tests.rs        -- 24 tests unitaires et d'integration
+\end{lstlisting}
+
+\textbf{Compilation et exécution :}
+\begin{lstlisting}[language=bash]
+cargo build --release
+cargo run --release    # Affiche les resultats pour toutes les sections
+cargo test             # Lance les 24 tests
+\end{lstlisting}
+
+\textbf{Coordonnées de l'heptagone de l'énoncé :}
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Sommet & $x$ & $y$ \\
+\midrule
+$s_0$ &  0 & 10 \\
+$s_1$ &  0 & 20 \\
+$s_2$ &  8 & 26 \\
+$s_3$ & 15 & 26 \\
+$s_4$ & 27 & 21 \\
+$s_5$ & 22 & 12 \\
+$s_6$ & 10 &  0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{document}

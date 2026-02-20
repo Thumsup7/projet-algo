@@ -1,0 +1,74 @@
+/target
+
+# LaTeX Core
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+
+# Intermediate documents:
+*.dvi
+*.xdv
+*-converted-to.*
+
+# Bibliography
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+
+# Build tool auxiliary files:
+*.fdb_latexmk
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+
+# makeidx
+*.idx
+*.ilg
+*.ind
+*.ist
+
+# beamer
+*.nav
+*.pre
+*.snm
+*.vrb
+
+# minted / listings
+_minted*
+*.pyg
+*.lol
+
+# glossaries / nomencl
+*.acn
+*.acr
+*.alg
+*.glg
+*.glo
+*.gls
+*.glsdefs
+*.lzo
+*.lzs
+*.slg
+*.slo
+*.sls
+*.nlo
+
+# hyperref
+*.brf
+
+# PDF (commonly ignored but handle with care, ignoring for now mostly just temp PDFs if you don't track PDFs)
+# *.pdf
