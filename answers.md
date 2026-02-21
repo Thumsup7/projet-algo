@@ -28,13 +28,22 @@ C(n, 2) − n = n(n−1)/2 − n = n(n−3)/2
 
   Soit T une triangulation quelconque de P. Considérons le triangle de T qui contient
   l'arête (s₀, s₁). Ce triangle a nécessairement la forme (s₀, s₁, sₖ) pour un certain
-  k ≥ 2. Si k ≥ 3, la corde (s₀, sₖ) (ou (s₁, sₖ)) est dans T. Dans tous les cas, le
-  triangle (s₀, s₁, sₖ) est un « oreille » : retirer le sommet s₁ donne un polygone
-  convexe P' à n−1 sommets (convexité préservée car on supprime un sommet de la
-  frontière convexe). La triangulation T restreinte à P' est une triangulation de P'
-  avec exactement une corde de moins que T (la corde qui séparait le triangle oreille
-  du reste). Par hypothèse de récurrence, T∩P' comporte (n−1)−3 = n−4 cordes.
-  En ajoutant la corde séparatrice, T comporte **n−3** cordes au total.
+  k ∈ {2, …, n−1}. Retirer le sommet s₁ donne un polygone convexe P' à n−1 sommets.
+  La triangulation T restreinte à P' comporte exactement **une corde de moins** que T,
+  selon le cas :
+
+  - **Cas k = 2 :** Le triangle est (s₀, s₁, s₂). Sa troisième arête (s₀, s₂) est une
+    corde de T qui **devient une arête** de P' (puisque s₂ est maintenant adjacent à s₀).
+    Elle n'est donc plus comptée comme corde dans T∩P'.
+
+  - **Cas k ≥ 3 :** Le triangle est (s₀, s₁, sₖ). Ses deux autres côtés (s₀, sₖ) et
+    (s₁, sₖ) sont tous deux des cordes de T. En retirant s₁, la corde (s₁, sₖ)
+    **disparaît** (son extrémité s₁ n'existe plus dans P'), tandis que (s₀, sₖ) demeure
+    une corde de P'.
+
+  Dans les deux cas, T∩P' est une triangulation de P' avec exactement une corde de
+  moins que T. Par hypothèse de récurrence, T∩P' comporte (n−1)−3 = n−4 cordes.
+  Donc T comporte **n−3** cordes au total.
 
 Ainsi, toute triangulation d'un polygone convexe à n sommets comporte exactement
 **n − 3 cordes**.
@@ -136,9 +145,11 @@ cette borne, avec les conditions 1–3 seulement) à 4 516 pour n=13 (facteur ~5
 
 ### B.3d — Limite pratique avec élagage
 
-Le temps croît d'un facteur ~3.2 par incrément de n. En extrapolant :
-- n=23 : ~96 s → accessible en moins de 2 minutes.
-- n=24 : ~310 s → dépasse la limite.
+Le temps croît d'un facteur ~3.2 par incrément de n. En extrapolant depuis n=20 (~3 200 ms) :
+- n=21 : ~10 000 ms
+- n=22 : ~33 000 ms
+- n=23 : ~106 s → accessible en moins de 2 minutes.
+- n=24 : ~340 s → dépasse la limite.
 
 Avec les quatre conditions d'élagage implémentées, la limite pratique est donc **n ≈ 23**
 en moins de 2 minutes sur une machine moderne.
@@ -303,7 +314,7 @@ la qualité de l'approximation dépend fortement de la géométrie du polygone.
 
 | Méthode | Complexité temporelle | Exacte | Praticable (grand n) |
 |---|---|---|---|
-| Essais successifs (avec élagage) | O(2^(n(n-3)/2)) réduit en pratique | Oui | Jusqu'à n ≈ 20 |
+| Essais successifs (avec élagage) | O(2^(n(n-3)/2)) réduit en pratique | Oui | Jusqu'à n ≈ 23 |
 | Programmation dynamique | O(n³) | Oui | Excellente (n jusqu'à plusieurs milliers) |
 | Algorithme glouton | O(n²) | Non (~2 % d'écart) | Excellente |
 

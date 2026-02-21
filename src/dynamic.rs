@@ -21,8 +21,6 @@ pub struct DpResult {
     pub cost: f64,
     /// Which vertex k was chosen at each (i, t) — for reconstructing the triangulation
     pub choice: Vec<Vec<usize>>,
-    /// The distance table used
-    pub dist: Vec<Vec<f64>>,
     pub n: usize,
 }
 
@@ -88,7 +86,6 @@ pub fn min_triangulation_dp(vertices: &[Point]) -> DpResult {
     DpResult {
         cost: dp[0][n],
         choice,
-        dist,
         n,
     }
 }

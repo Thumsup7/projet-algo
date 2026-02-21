@@ -11,25 +11,6 @@ impl Point {
     }
 }
 
-/// Euclidean distance between two points
-pub fn dist(a: &Point, b: &Point) -> f64 {
-    let dx = a.x - b.x;
-    let dy = a.y - b.y;
-    (dx * dx + dy * dy).sqrt()
-}
-
-/// Precompute all pairwise distances for the polygon vertices
-pub fn compute_distances(vertices: &[Point]) -> Vec<Vec<f64>> {
-    let n = vertices.len();
-    let mut d = vec![vec![0.0; n]; n];
-    for i in 0..n {
-        for j in 0..n {
-            d[i][j] = dist(&vertices[i], &vertices[j]);
-        }
-    }
-    d
-}
-
 /// Returns true if segment (p1,p2) and segment (p3,p4) properly intersect
 /// (not counting shared endpoints, which happen for adjacent chords)
 pub fn segments_intersect(p1: &Point, p2: &Point, p3: &Point, p4: &Point) -> bool {

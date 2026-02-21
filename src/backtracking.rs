@@ -119,14 +119,13 @@ pub fn backtrack(state: &mut BacktrackState, start: usize) {
 
     // === Pruning B.3c ===
 
-    // 1. Already have enough chords: check if it's a valid triangulation
+    // 1. Already have enough chords: for a convex polygon, exactly n-3 mutually
+    //    non-crossing chords always form a complete triangulation (Euler's formula).
     if state.selected.len() == state.needed {
-        if is_full_triangulation(state) {
-            let cost = state.current_cost();
-            if cost < state.best_cost {
-                state.best_cost = cost;
-                state.best_solution = state.selected.clone();
-            }
+        let cost = state.current_cost();
+        if cost < state.best_cost {
+            state.best_cost = cost;
+            state.best_solution = state.selected.clone();
         }
         return;
     }
@@ -160,7 +159,6 @@ pub fn backtrack(state: &mut BacktrackState, start: usize) {
         // Stronger branch-and-bound: since chords are sorted by length ascending,
         // the cheapest possible completion uses the next `still_needed` chords.
         // If even that lower bound exceeds the best cost, we can stop the loop entirely.
-        let still_needed = state.needed - state.selected.len();
         let lower_bound = state.current_cost()
             + (0..still_needed)
                 .map(|k| state.chords.get(idx + k).map_or(f64::INFINITY, |c| c.length))
@@ -177,34 +175,8 @@ pub fn backtrack(state: &mut BacktrackState, start: usize) {
     }
 }
 
-/// Check whether the selected chords form a complete triangulation of the polygon.
-///
-/// For a *convex* polygon, any set of exactly n-3 mutually non-crossing chords
-/// is provably a complete triangulation (by Euler's formula: V=n, E=2n-3 gives
-/// F=n-1, so n-2 interior triangular faces). `valid_chord` guarantees non-crossing,
-/// and the check `selected.len() == needed` ensures we have exactly n-3 chords.
-///
-/// This function is therefore a tautology at the call site (the guard before it
-/// already checks `selected.len() == needed`), but is kept here for clarity and
-/// to make the mathematical invariant explicit.
-fn is_full_triangulation(state: &BacktrackState) -> bool {
-    state.selected.len() == state.needed
-}
-
 /// Public API: find the minimum triangulation via backtracking.
-pub fn min_triangulation_backtrack(vertices: &[Point]) -> (f64, Vec<Chord>) {
-    let chords = all_chords(vertices);
-    let mut state = BacktrackState::new(vertices, &chords);
-    backtrack(&mut state, 0);
-    let solution = state
-        .best_solution
-        .iter()
-        .map(|&i| chords[i])
-        .collect();
-    (state.best_cost, solution)
-}
-
-/// Same but also returns the call count (for analysis)
+/// Also returns the recursive call count for complexity analysis.
 pub fn min_triangulation_backtrack_verbose(vertices: &[Point]) -> (f64, Vec<Chord>, u64) {
     let chords = all_chords(vertices);
     let mut state = BacktrackState::new(vertices, &chords);
